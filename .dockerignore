@@ -1,0 +1,11 @@
+.git
+.github
+.env
+.env.*
+*.log
+tmp
+bin
+dist
+coverage
+README.md
+docker-compose*.yaml

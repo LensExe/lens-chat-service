@@ -1,0 +1,2 @@
+{"level":"INFO","ts":"2026-05-16T09:24:46.424+0700","caller":"initianlize/run.go:14","msg":"Logger initialized ..."}
+{"level":"INFO","ts":"2026-05-16T09:26:25.108+0700","caller":"initianlize/run.go:16","msg":"Logger initialized ...","ok":"log"}

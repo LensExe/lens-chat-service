@@ -1,0 +1,14 @@
+server:
+  address: ':8080'
+  mode: release
+  shutdown-timeout: 10s
+mongo:
+  uri: 'mongodb://localhost:27017/?replicaSet=rs0&directConnection=true'
+  database: chat_direct
+keycloak:
+  issuer: 'https://identity.example.com/realms/application'
+  audience: chat-service
+  public-key-file: './config/keycloak-public.pem'
+cors:
+  allow-origins:
+    - 'http://localhost:3000'
