@@ -1,0 +1,35 @@
+name: deploy
+services:
+  chat:
+    build:
+      context: ../../../chat-service
+    environment:
+      SERVER_ADDRESS: ':8080'
+      SERVER_MODE: release
+      MONGO_URI: ${MONGO_URI:-mongodb://chat-mongodb:27017/}
+      MONGO_DATABASE: ${MONGO_DATABASE:-chat_direct}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:?Provide the realm issuer}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-chat-service}
+      KEYCLOAK_PUBLIC_KEY: ${KEYCLOAK_PUBLIC_KEY:?Provide the realm RSA public key}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:3000}
+      # Chat publishes durable domain events; Notification consumes them from
+      # the same private Docker network.
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-kafka:9094}
+      KAFKA_CLIENT_ID: ${KAFKA_CLIENT_ID:-chat-service}
+      KAFKA_CHAT_EVENTS_TOPIC: ${KAFKA_CHAT_EVENTS_TOPIC:-chat.conversation.events.v1}
+      KAFKA_USERNAME: ${KAFKA_USERNAME:-}
+      KAFKA_PASSWORD: ${KAFKA_PASSWORD:-}
+      KAFKA_SSL: ${KAFKA_SSL:-false}
+      KAFKA_OUTBOX_POLL_INTERVAL: ${KAFKA_OUTBOX_POLL_INTERVAL:-1s}
+      KAFKA_OUTBOX_LEASE_DURATION: ${KAFKA_OUTBOX_LEASE_DURATION:-30s}
+      KAFKA_PUBLISH_TIMEOUT: ${KAFKA_PUBLISH_TIMEOUT:-10s}
+    ports:
+      - '127.0.0.1:${CHAT_HOST_PORT:-8081}:8080'
+    networks:
+      - lens-network
+    restart: unless-stopped
+
+networks:
+  lens-network:
+    external: true
+    name: lens-network

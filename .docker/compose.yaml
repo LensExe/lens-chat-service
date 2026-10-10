@@ -1,0 +1,28 @@
+# Local development only. For production use an authenticated replica set.
+name: deploy
+services:
+  chat-mongodb:
+    image: mongo:7.0.34-jammy
+    command: ['mongod', '--bind_ip_all']
+    ports:
+      - '127.0.0.1:27017:27017'
+    volumes:
+      - chat_direct_data:/data/db
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'mongosh --quiet --eval "db.adminCommand({ ping: 1 }).ok" | grep 1',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - lens-network
+volumes:
+  chat_direct_data:
+
+networks:
+  lens-network:
+    external: true
+    name: lens-network

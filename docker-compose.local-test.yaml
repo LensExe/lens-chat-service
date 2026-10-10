@@ -1,0 +1,28 @@
+name: chat-service-local-test
+
+services:
+  chat-mongodb:
+    image: mongo:7.0.34-jammy
+    container_name: chat-service-test-mongodb
+    command: ['mongod', '--bind_ip_all']
+    ports:
+      - '127.0.0.1:27018:27017'
+    volumes:
+      - chat_service_standalone_data:/data/db
+    healthcheck:
+      test: ['CMD-SHELL', 'mongosh --quiet --eval "db.adminCommand({ ping: 1 }).ok" | grep 1']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      lens-network:
+        aliases:
+          - chat-mongodb
+
+volumes:
+  chat_service_standalone_data:
+
+networks:
+  lens-network:
+    external: true
+    name: lens-network
