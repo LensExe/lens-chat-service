@@ -7,6 +7,7 @@ type Config struct {
 	Mongo    MongoConfig    `mapstructure:"mongo"`
 	Keycloak KeycloakConfig `mapstructure:"keycloak"`
 	CORS     CORSConfig     `mapstructure:"cors"`
+	Kafka    KafkaConfig    `mapstructure:"kafka"`
 }
 
 type ServerConfig struct {
@@ -29,4 +30,16 @@ type KeycloakConfig struct {
 
 type CORSConfig struct {
 	AllowOrigins []string `mapstructure:"allow-origins"`
+}
+
+type KafkaConfig struct {
+	Brokers             string        `mapstructure:"brokers"`
+	ClientID            string        `mapstructure:"client-id"`
+	ChatEventsTopic     string        `mapstructure:"chat-events-topic"`
+	Username            string        `mapstructure:"username"`
+	Password            string        `mapstructure:"password"`
+	TLS                 bool          `mapstructure:"ssl"`
+	OutboxPollInterval  time.Duration `mapstructure:"outbox-poll-interval"`
+	OutboxLeaseDuration time.Duration `mapstructure:"outbox-lease-duration"`
+	PublishTimeout      time.Duration `mapstructure:"publish-timeout"`
 }

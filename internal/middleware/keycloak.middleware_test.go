@@ -89,7 +89,7 @@ func TestKeycloakVerification(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.GET("/", verifier.GinMiddleware(), func(c *gin.Context) {
-		if UserID(c) != "keycloak-user-uuid" || TenantID(c) != "default" {
+		if UserID(c) != "keycloak-user-uuid" {
 			t.Error("wrong principal")
 		}
 		c.Status(204)

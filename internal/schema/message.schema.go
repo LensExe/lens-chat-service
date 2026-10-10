@@ -10,7 +10,6 @@ const CollectionMessages = "messages"
 
 type Message struct {
 	ID               primitive.ObjectID `bson:"_id,omitempty"`
-	TenantID         string             `bson:"tenant_id"`
 	ChannelID        primitive.ObjectID `bson:"channel_id"`
 	SenderID         string             `bson:"sender_id"`
 	ClientMessageID  string             `bson:"client_message_id"`

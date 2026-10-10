@@ -17,7 +17,7 @@ func (h *Controller) Create(c *gin.Context) {
 		response.FromError(c, response.ErrInvalid)
 		return
 	}
-	ch, err := h.service.Create(c.Request.Context(), middleware.TenantID(c), middleware.UserID(c), req.PeerID)
+	ch, err := h.service.Create(c.Request.Context(), middleware.UserID(c), req.PeerID)
 	if err != nil {
 		response.FromError(c, err)
 		return
@@ -25,7 +25,7 @@ func (h *Controller) Create(c *gin.Context) {
 	response.OK(c, 200, mapper.Channel(ch, middleware.UserID(c)))
 }
 func (h *Controller) List(c *gin.Context) {
-	channels, err := h.service.List(c.Request.Context(), middleware.TenantID(c), middleware.UserID(c))
+	channels, err := h.service.List(c.Request.Context(), middleware.UserID(c))
 	if err != nil {
 		response.FromError(c, err)
 		return
@@ -37,7 +37,7 @@ func (h *Controller) List(c *gin.Context) {
 	response.OK(c, 200, result)
 }
 func (h *Controller) Get(c *gin.Context) {
-	ch, err := h.service.Get(c.Request.Context(), middleware.TenantID(c), middleware.UserID(c), c.Param("channel-id"))
+	ch, err := h.service.Get(c.Request.Context(), middleware.UserID(c), c.Param("channel-id"))
 	if err != nil {
 		response.FromError(c, err)
 		return

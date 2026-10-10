@@ -10,7 +10,6 @@ const CollectionChannelStates = "channel_states"
 
 type ChannelState struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty"`
-	TenantID    string             `bson:"tenant_id"`
 	ChannelID   primitive.ObjectID `bson:"channel_id"`
 	UserID      string             `bson:"user_id"`
 	LastReadSeq int64              `bson:"last_read_seq"`

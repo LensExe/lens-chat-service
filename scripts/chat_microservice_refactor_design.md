@@ -1,10 +1,14 @@
 # Thiết kế refactor Chat Service cho hệ thống microservice
 
-## Phạm vi triển khai điều chỉnh — 2026-09-10
+## Phạm vi triển khai điều chỉnh — 2026-10-05
 
-Yêu cầu mới giới hạn runtime vào chat 1-1 và giữ cấu trúc modular hiện có (`channel/message/websocket`, controller/service/repo, `schema/dto`). Các mục bên dưới về group, Clean Architecture phân layer domain/usecase, Kafka/outbox, Redis, Media và migration nhiều phase là roadmap tham khảo, không phải phạm vi triển khai lần này.
+> Cập nhật implementation ngày 2026-10-10: Chat Service hiện chạy với Mongo standalone, không dùng multi-document transaction. Phần thiết kế bên dưới vẫn chứa đề xuất transactional outbox; đó không phải guarantee hiện tại. Chi tiết runtime hiện tại nằm trong `README.md` và `docs/chat-outbox-producer.md`.
 
-Đã chọn Keycloak RS256 với public key nạp một lần lúc khởi động, verify hoàn toàn local và bắt buộc issuer/audience/expiry/subject/access-token type. Không gọi Keycloak để verify từng request. User ID là Keycloak `sub` dạng chuỗi. Channel chứa đúng hai participant và canonical direct key. Gửi message dùng Mongo transaction + idempotency key cấp message; realtime một replica là best-effort. Schema mới dùng database riêng, chưa tự migration dữ liệu cũ. Hướng dẫn cấu hình và API thực tế nằm trong README.md.
+Runtime hiện giới hạn vào chat 1-1 trong một nền tảng booking duy nhất và giữ cấu trúc modular (`channel/message`, controller/service/repo, `schema/dto`). Participant IDs là tham chiếu đến user IDs do core/identity sở hữu, được nhúng trong channel document. Một cặp photographer/customer có một channel dùng chung. Chat Service không còn xử lý hoặc phát chat realtime qua WebSocket; nó ghi create/edit/recall/read-cursor event vào Mongo outbox bằng các write riêng rồi relay lên Kafka. Mongo standalone không bảo đảm business write và outbox write cùng commit. Notification Service là chủ sở hữu duy nhất của client-facing Socket.IO realtime. Các mục về group, Clean Architecture phân layer domain/usecase, Redis presence/fan-out trong Chat, Media và migration nhiều phase vẫn là roadmap tham khảo.
+
+Đã chọn Keycloak RS256 với public key nạp một lần lúc khởi động, verify hoàn toàn local và bắt buộc issuer/audience/expiry/subject/access-token type. Không gọi Keycloak để verify từng request. User ID là Keycloak `sub` dạng chuỗi. Channel chứa đúng hai participant và canonical direct key. Các thao tác ghi dùng atomic update trên từng document; outbox được insert riêng và có thể bị thiếu nếu process dừng giữa các write. Notification Service consume create/update/recall/read-cursor và phát Socket.IO. Schema mới dùng database riêng, chưa tự migration dữ liệu cũ. Hướng dẫn cấu hình và API thực tế nằm trong README.md của từng service và `notification-system/md/chat-realtime-operations.md`.
+
+Các phần dưới đây giữ lại thiết kế refactor rộng ban đầu và một số roadmap chưa triển khai. Những chỗ mô tả transaction là phương án đề xuất cũ. Khi có khác biệt, README và `docs/chat-outbox-producer.md` trong service là chuẩn cho runtime hiện tại: Chat chỉ nhận command qua HTTP, lưu user IDs trong channel và phát domain event qua Kafka; client-facing Socket.IO thuộc Notification Service.
 
 ---
 
@@ -14,7 +18,7 @@ Yêu cầu mới giới hạn runtime vào chat 1-1 và giữ cấu trúc modula
 
 ## 1. Tóm tắt quyết định
 
-Giữ Go, Gin, MongoDB, Redis, S3/MinIO và WebSocket. Bổ sung Kafka như event backbone thực tế và áp dụng transactional outbox.
+Giữ Go, Gin và MongoDB cho Chat Service; loại bỏ WebSocket, Redis presence/fan-out và mọi client-facing realtime handler khỏi Chat. Dùng Kafka làm event backbone qua transactional outbox; Notification Service sở hữu Socket.IO và Redis Streams adapter để phát realtime tới client.
 
 Chat Service mới chỉ sở hữu:
 
@@ -51,10 +55,10 @@ Các biến số cần chốt trước sprint triển khai đầu tiên:
 | Broker chung của hệ thống | Kafka |
 | Auth token | JWT bất đối xứng, verify offline bằng JWKS |
 | API nội bộ | REST/JSON; có thể thay bằng gRPC qua adapter |
-| Multi-tenant | Có trường `tenant_id`, dùng giá trị mặc định nếu single-tenant |
+| Data scope | Một nền tảng booking; resource được giới hạn theo user và channel |
 | File ownership | Media Service sở hữu binary; Chat chỉ lưu metadata/reference |
 | Friend request | Social/User Service sở hữu |
-| Retention | Không tự xóa, cấu hình theo tenant/conversation |
+| Retention | Không tự xóa, cấu hình theo conversation |
 
 ## 3. Đánh giá hiện trạng repository
 
@@ -71,20 +75,20 @@ Các biến số cần chốt trước sprint triển khai đầu tiên:
 | Mức | Hiện trạng | Tác động | Hướng xử lý |
 |---|---|---|---|
 | P0 | User/auth/role/refresh token cùng process và cùng database | Không có ownership rõ ràng, khó deploy độc lập | Tách khỏi public surface của Chat; verify access token do Auth Service phát |
-| P0 | Controller lưu Mongo rồi gọi trực tiếp in-memory WebSocket hub | Chỉ gửi được tới user nằm trên cùng replica; crash giữa save và notify làm mất event | Outbox -> Kafka -> realtime relay -> Redis Pub/Sub -> local connection registry |
+| P0 | Baseline cũ: controller lưu Mongo rồi gọi in-memory WebSocket hub | Chỉ gửi được tới user cùng replica; crash giữa save và notify làm mất event | Đã thay bằng Mongo transactional outbox -> Kafka -> Notification Service Socket.IO/Redis Streams |
 | P0 | `msg_seq = UnixMilli()` | Hai message cùng millisecond có thể trùng/thứ tự không xác định | Atomic counter theo conversation trong Mongo transaction |
 | P0 | Tạo group/direct channel qua nhiều insert/update không transaction | Có thể còn group không channel hoặc member không unread | Một application transaction; outbox cùng transaction |
 | P0 | Nhiều endpoint nhận `user-id`/owner/requester từ body/path | Có thể thao tác thay user khác | Actor luôn lấy từ JWT `sub`; body chỉ chứa target/resource |
-| P0 | WebSocket `CheckOrigin` luôn true và token có thể ở query | CSWSH, token xuất hiện trong access log/history | Origin allowlist + one-time realtime ticket |
-| P0 | Hub map bị đọc/ghi từ cả event loop và method ngoài loop, nhưng lock không nhất quán | Data race, panic concurrent map access/close channel | Registry có ownership/locking thống nhất; `go test -race` bắt buộc |
-| P1 | Redis presence đang dùng Hash/TTL chưa đúng mô hình; online chỉ biết local process | Presence sai khi multi-replica hoặc process chết | Key theo connection có TTL, heartbeat refresh; aggregate theo user |
+| P0 | Baseline cũ: WebSocket `CheckOrigin` rộng và token có thể ở query | CSWSH, token xuất hiện trong access log/history | Chat đã bỏ WebSocket; Notification Service chịu trách nhiệm Socket.IO auth/origin policy |
+| P0 | Baseline cũ: Hub map dùng chung giữa event loop và handler | Data race, panic concurrent map access/close channel | Chat đã xóa Hub; không còn registry/socket logic trong runtime |
+| P1 | Presence/typing chưa nằm trong phạm vi realtime của Chat | Không có presence đa replica và không hỗ trợ typing | Chưa triển khai; nếu cần thì đặt ở Notification hoặc realtime service riêng, không khôi phục socket tại Chat |
 | P1 | Không có Mongo indexes được quản lý trong code | Query history/member/unread suy giảm nhanh | Versioned index migration, fail startup nếu index quan trọng sai |
 | P1 | Unread là mutable counter và client được phép update record theo ID | Lost update và authorization khó kiểm soát | Lưu `last_read_seq`, suy ra unread từ `last_seq - last_read_seq` hoặc projection |
 | P1 | Trộn Mongo driver v1 và v2 | Mapping/error behavior không đồng nhất | Chuẩn hóa một major version |
 | P1 | Global singleton chứa DB, Redis, cache, S3, hub | Test khó, lifecycle/shutdown không rõ | Constructor injection qua ports/interfaces |
 | P1 | Health chỉ trả `ok` | Pod nhận traffic dù dependency chưa sẵn sàng | `/livez`, `/readyz`, `/metrics`, graceful shutdown |
 | P2 | Event name/payload chưa version hóa | Client và consumer dễ vỡ khi deploy lệch phiên bản | Envelope chuẩn, schema version, compatibility policy |
-| P2 | Kafka hiện chỉ là CLI demo, hard-code broker/topic | Chưa phải integration layer | Producer/consumer adapter, retry/DLQ, outbox relay |
+| P2 | Các consumer/client vẫn cần quản lý schema compatibility, duplicate và replay | Duplicate hoặc event cũ có thể tới sau khi retry/replay | Consumer validate schema; client dedupe bằng `event_id`, kiểm `aggregate_version`/`revision`, và catch up qua Chat history |
 
 Một số lỗi hiện trạng nên sửa ngay cả trước khi tách service:
 
@@ -100,16 +104,17 @@ Một số lỗi hiện trạng nên sửa ngay cả trước khi tách service:
 ```mermaid
 flowchart LR
     Client[Web / Mobile] --> Gateway[API Gateway]
-    Gateway -->|REST + WS| Chat[Chat Service]
+    Gateway -->|REST commands/history| Chat[Chat Service]
+    Gateway -->|Socket.IO| Notification[Notification Service]
     Gateway --> Auth[Auth Service]
     Chat -->|verify JWT/JWKS| Auth
     Chat --> Mongo[(Chat MongoDB)]
-    Chat --> Redis[(Redis)]
     Chat --> Kafka[(Kafka)]
     Chat -->|presign/metadata| Media[Media Service]
     User[User/Profile Service] -->|user.updated / user.deleted| Kafka
     Social[Social Service] -->|connection.accepted / blocked| Kafka
-    Kafka --> Notification[Notification Service]
+    Kafka --> Notification
+    Notification --> Redis[(Redis Streams adapter)]
     Kafka --> Search[Search/Moderation/Analytics]
 ```
 
@@ -121,7 +126,8 @@ flowchart LR
 | Profile, avatar, display name | User Service | Event-driven local projection; fallback API có timeout |
 | Friend/block relationship | Social Service | Event `connection.accepted`, `user.blocked`; policy check nội bộ |
 | Conversation, membership, message | Chat Service | MongoDB riêng của Chat |
-| Presence/typing | Chat Service | Redis TTL và WebSocket |
+| Client-facing chat realtime / Socket.IO | Notification Service | Kafka chat events; Redis Streams khi scale nhiều instance |
+| Typing/presence | Chưa triển khai trong phạm vi hiện tại | Nếu bổ sung, phải đặt ở Notification hoặc realtime service riêng; Chat không mở socket |
 | File binary, virus scan | Media Service | `attachment_id`, signed URL/status event |
 | Push/email notification | Notification Service | Consume `chat.message.created.v1` |
 
@@ -192,7 +198,6 @@ Giữ MongoDB để giảm rủi ro migration. Trong giai đoạn đầu giữ O
 ```json
 {
   "_id": "ObjectId",
-  "tenant_id": "default",
   "type": "direct|group",
   "direct_key": "minUserId:maxUserId",
   "title": "Team A",
@@ -208,7 +213,7 @@ Giữ MongoDB để giảm rủi ro migration. Trong giai đoạn đầu giữ O
 }
 ```
 
-- Unique partial index `(tenant_id, direct_key)` cho direct chat.
+- Unique partial index `(direct_key)` cho direct chat.
 - `last_seq` được `$inc` atomically trong transaction tạo message.
 - Không dùng `participant_ids` làm source of truth; membership collection là source of truth.
 
@@ -217,7 +222,6 @@ Giữ MongoDB để giảm rủi ro migration. Trong giai đoạn đầu giữ O
 ```json
 {
   "_id": "ObjectId",
-  "tenant_id": "default",
   "conversation_id": "ObjectId",
   "user_id": "external-user-id",
   "role": "owner|admin|member",
@@ -229,14 +233,13 @@ Giữ MongoDB để giảm rủi ro migration. Trong giai đoạn đầu giữ O
 }
 ```
 
-Membership history được giữ lại để quyết định user được xem message từ thời điểm nào. Unique index `(tenant_id, conversation_id, user_id)`.
+Membership history được giữ lại để quyết định user được xem message từ thời điểm nào. Unique index `(conversation_id, user_id)`.
 
 ### 6.3. `messages`
 
 ```json
 {
   "_id": "ObjectId",
-  "tenant_id": "default",
   "conversation_id": "ObjectId",
   "seq": 1842,
   "sender_id": "external-user-id",
@@ -256,8 +259,8 @@ Membership history được giữ lại để quyết định user được xem 
 
 Unique indexes:
 
-- `(tenant_id, conversation_id, seq)`;
-- `(tenant_id, sender_id, client_message_id)` để chống gửi lặp khi retry.
+- `(conversation_id, seq)`;
+- `(conversation_id, sender_id, client_message_id)` để chống gửi lặp khi retry.
 
 Không dùng một field `status` chung trên message để biểu diễn delivered/read cho cả group. Delivery/read là trạng thái theo user/device hoặc read cursor.
 
@@ -265,7 +268,6 @@ Không dùng một field `status` chung trên message để biểu diễn delive
 
 ```json
 {
-  "tenant_id": "default",
   "conversation_id": "ObjectId",
   "user_id": "external-user-id",
   "last_delivered_seq": 1839,
@@ -279,7 +281,7 @@ Không dùng một field `status` chung trên message để biểu diễn delive
 }
 ```
 
-Unique index `(tenant_id, user_id, conversation_id)`. Update read cursor bằng `$max`, vì cursor chỉ được tiến về phía trước. Unread cơ bản là `max(0, conversation.last_seq - state.last_read_seq)`; nếu system message không tính unread thì duy trì projection có điều kiện.
+Unique index `(user_id, conversation_id)`. Update read cursor bằng `$max`, vì cursor chỉ được tiến về phía trước. Unread cơ bản là `max(0, conversation.last_seq - state.last_read_seq)`; nếu system message không tính unread thì duy trì projection có điều kiện.
 
 ### 6.5. Các collection phụ
 
@@ -292,14 +294,14 @@ Unique index `(tenant_id, user_id, conversation_id)`. Update read cursor bằng 
 ### 6.6. Index bắt buộc
 
 ```javascript
-conversations:             { tenant_id: 1, direct_key: 1 } unique partial
-conversations:             { tenant_id: 1, last_message_at: -1 }
-conversation_members:      { tenant_id: 1, user_id: 1, status: 1, conversation_id: 1 }
-conversation_members:      { tenant_id: 1, conversation_id: 1, user_id: 1 } unique
-messages:                  { tenant_id: 1, conversation_id: 1, seq: -1 } unique
-messages:                  { tenant_id: 1, sender_id: 1, client_message_id: 1 } unique
-user_conversation_states:  { tenant_id: 1, user_id: 1, conversation_id: 1 } unique
-message_visibility:        { tenant_id: 1, user_id: 1, message_id: 1 } unique
+conversations:             { direct_key: 1 } unique partial
+conversations:             { last_message_at: -1 }
+conversation_members:      { user_id: 1, status: 1, conversation_id: 1 }
+conversation_members:      { conversation_id: 1, user_id: 1 } unique
+messages:                  { conversation_id: 1, seq: -1 } unique
+messages:                  { conversation_id: 1, sender_id: 1, client_message_id: 1 } unique
+user_conversation_states:  { user_id: 1, conversation_id: 1 } unique
+message_visibility:        { user_id: 1, message_id: 1 } unique
 outbox_events:             { status: 1, next_attempt_at: 1, created_at: 1 }
 outbox_events:             { published_at: 1 } TTL theo retention
 inbox_events:              { event_id: 1 } unique
@@ -370,7 +372,6 @@ Response `201` trả message canonical có `id`, `seq`, `created_at`. Retry cùn
   "event_type": "chat.message.created.v1",
   "occurred_at": "2026-09-09T12:30:00Z",
   "producer": "chat-service",
-  "tenant_id": "default",
   "aggregate_type": "conversation",
   "aggregate_id": "65f...",
   "aggregate_version": 1842,
@@ -454,7 +455,7 @@ Quan trọng:
 ### 10.1. Kết nối
 
 1. Client gọi `POST /realtime-ticket` bằng access token.
-2. Chat phát ticket opaque, single-use, TTL 30 giây, bind với `user_id`, `device_id`, tenant và token expiry.
+2. Chat phát ticket opaque, single-use, TTL 30 giây, bind với `user_id`, `device_id` và token expiry.
 3. Client kết nối `wss://.../api/v1/chat/ws?ticket=...`.
 4. WS node consume ticket atomically, kiểm Origin allowlist và đăng ký connection.
 
@@ -508,7 +509,7 @@ Mongo transaction yêu cầu replica set. Nếu chưa thể bật replica set, g
 
 ### 11.2. Idempotency
 
-- Public commands: `Idempotency-Key` scoped theo `(tenant, actor, route)`.
+- Public commands: `Idempotency-Key` scoped theo `(actor, route)`.
 - Message: unique `(sender_id, client_message_id)`.
 - Incoming event: unique `event_id` trong inbox.
 - Read cursor: `$max(last_read_seq, requested_seq)`.
@@ -537,7 +538,7 @@ Mỗi use case kiểm policy trong service:
 
 - xem/gửi message: active member và `seq >= joined_seq`;
 - edit/recall: sender hoặc moderator theo policy, có time window nếu nghiệp vụ yêu cầu;
-- add/kick member: owner/admin và không vượt tenant limit;
+- add/kick member: owner/admin theo policy sản phẩm;
 - read/hide: actor chỉ cập nhật state của chính mình;
 - attachment: attachment thuộc actor, scan passed, chưa attach nơi khác nếu policy cấm.
 
@@ -660,7 +661,7 @@ Exit: Chat deploy được khi không có schema/collection user/auth local; kh�
 - Backfill `channels/groups/channel_members/messages` sang schema mới bằng job có checkpoint.
 - Dùng deterministic mapping giữ ID cũ; ghi migration audit/count/checksum.
 - Trong cửa sổ chuyển tiếp: dual-read có feature flag; tránh dual-write tay, ưu tiên CDC/outbox bridge.
-- Shadow read và so sánh response; canary tenant/user; tăng dần traffic tại gateway.
+- Shadow read và so sánh response; canary user; tăng dần traffic tại gateway.
 - Giữ route cũ trả deprecation/sunset header rồi mới remove.
 
 Exit: reconciliation không lệch, rollback gateway đã diễn tập, old writer bị khóa.
@@ -687,7 +688,7 @@ Exit: reconciliation không lệch, rollback gateway đã diễn tập, old writ
 
 Backfill phải tạo báo cáo:
 
-- tổng record nguồn/đích theo collection và tenant;
+- tổng record nguồn/đích theo collection;
 - orphan message/member/channel;
 - duplicate direct conversation/member/client key;
 - collision sequence;

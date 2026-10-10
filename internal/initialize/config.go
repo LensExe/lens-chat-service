@@ -21,15 +21,25 @@ func LoadConfig() (setting.Config, error) {
 	v.SetDefault("server.address", ":8080")
 	v.SetDefault("server.mode", "release")
 	v.SetDefault("server.shutdown-timeout", 10*time.Second)
-	v.SetDefault("mongo.uri", "mongodb://localhost:27017/?replicaSet=rs0&directConnection=true")
+	v.SetDefault("mongo.uri", "mongodb://localhost:27018/")
 	v.SetDefault("mongo.database", "chat_direct")
 	v.SetDefault("cors.allow-origins", []string{"http://localhost:3000"})
+	v.SetDefault("kafka.brokers", "localhost:9092")
+	v.SetDefault("kafka.client-id", "chat-service")
+	v.SetDefault("kafka.chat-events-topic", "chat.conversation.events.v1")
+	v.SetDefault("kafka.ssl", false)
+	v.SetDefault("kafka.outbox-poll-interval", time.Second)
+	v.SetDefault("kafka.outbox-lease-duration", 30*time.Second)
+	v.SetDefault("kafka.publish-timeout", 10*time.Second)
 
 	keys := []string{
 		"server.address", "server.mode", "server.shutdown-timeout",
 		"mongo.uri", "mongo.database",
 		"keycloak.issuer", "keycloak.audience", "keycloak.public-key", "keycloak.public-key-file",
 		"cors.allow-origins",
+		"kafka.brokers", "kafka.client-id", "kafka.chat-events-topic",
+		"kafka.username", "kafka.password", "kafka.ssl",
+		"kafka.outbox-poll-interval", "kafka.outbox-lease-duration", "kafka.publish-timeout",
 	}
 	for _, key := range keys {
 		if err := v.BindEnv(key); err != nil {
@@ -67,6 +77,15 @@ func LoadConfig() (setting.Config, error) {
 	}
 	if cfg.Keycloak.PublicKey == "" && cfg.Keycloak.PublicKeyFile == "" {
 		return setting.Config{}, errors.New("KEYCLOAK_PUBLIC_KEY or KEYCLOAK_PUBLIC_KEY_FILE is required")
+	}
+	if strings.TrimSpace(cfg.Kafka.Brokers) == "" || strings.TrimSpace(cfg.Kafka.ClientID) == "" || strings.TrimSpace(cfg.Kafka.ChatEventsTopic) == "" {
+		return setting.Config{}, errors.New("Kafka brokers, client ID, and chat events topic are required")
+	}
+	if (cfg.Kafka.Username == "") != (cfg.Kafka.Password == "") {
+		return setting.Config{}, errors.New("set both KAFKA_USERNAME and KAFKA_PASSWORD, or leave both unset")
+	}
+	if cfg.Kafka.OutboxPollInterval <= 0 || cfg.Kafka.OutboxLeaseDuration <= 0 || cfg.Kafka.PublishTimeout <= 0 || cfg.Kafka.OutboxLeaseDuration <= cfg.Kafka.PublishTimeout {
+		return setting.Config{}, errors.New("Kafka outbox intervals must be positive and lease duration must exceed publish timeout")
 	}
 	return cfg, nil
 }

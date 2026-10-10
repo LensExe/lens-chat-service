@@ -17,13 +17,11 @@ import (
 
 const (
 	ContextUserID    = "auth.user_id"
-	ContextTenantID  = "auth.tenant_id"
 	ContextExpiresAt = "auth.expires_at"
 )
 
 type KeycloakClaims struct {
 	TokenType         string `json:"typ"`
-	TenantID          string `json:"tenant_id,omitempty"`
 	PreferredUsername string `json:"preferred_username,omitempty"`
 	jwt.RegisteredClaims
 }
@@ -99,21 +97,13 @@ func (v *KeycloakVerifier) Verify(rawToken string) (*KeycloakClaims, error) {
 func (v *KeycloakVerifier) GinMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawToken := bearerToken(c.GetHeader("Authorization"))
-		if rawToken == "" && c.GetHeader("Authorization") == "" && strings.EqualFold(c.GetHeader("Upgrade"), "websocket") {
-			rawToken = websocketSubprotocolToken(c.GetHeader("Sec-WebSocket-Protocol"))
-		}
 		claims, err := v.Verify(rawToken)
 		if err != nil {
 			response.Unauthorized(c)
 			c.Abort()
 			return
 		}
-		tenantID := claims.TenantID
-		if tenantID == "" {
-			tenantID = "default"
-		}
 		c.Set(ContextUserID, claims.Subject)
-		c.Set(ContextTenantID, tenantID)
 		c.Set(ContextExpiresAt, claims.ExpiresAt.Time)
 		c.Next()
 	}
@@ -127,25 +117,6 @@ func bearerToken(header string) string {
 	return ""
 }
 
-// Browser clients can connect with: new WebSocket(url, ["access_token", token]).
-// The access token is verified locally and is never sent to Keycloak per request.
-func websocketSubprotocolToken(header string) string {
-	parts := strings.Split(header, ",")
-	for index := range parts {
-		parts[index] = strings.TrimSpace(parts[index])
-	}
-	for index := 0; index+1 < len(parts); index++ {
-		if parts[index] == "access_token" {
-			return parts[index+1]
-		}
-	}
-	return ""
-}
-
 func UserID(c *gin.Context) string {
 	return c.GetString(ContextUserID)
-}
-
-func TenantID(c *gin.Context) string {
-	return c.GetString(ContextTenantID)
 }

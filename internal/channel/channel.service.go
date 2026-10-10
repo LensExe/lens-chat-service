@@ -13,28 +13,28 @@ import (
 )
 
 type Repository interface {
-	GetOrCreate(context.Context, string, [2]string, string) (*schema.Channel, error)
-	Get(context.Context, string, primitive.ObjectID) (*schema.Channel, error)
-	List(context.Context, string, string, int64) ([]schema.Channel, error)
+	GetOrCreate(context.Context, [2]string, string) (*schema.Channel, error)
+	Get(context.Context, primitive.ObjectID) (*schema.Channel, error)
+	List(context.Context, string, int64) ([]schema.Channel, error)
 }
 type Service struct{ repo Repository }
 
 func NewService(repo Repository) *Service { return &Service{repo: repo} }
-func (s *Service) Create(ctx context.Context, tenant, actor, peer string) (*schema.Channel, error) {
+func (s *Service) Create(ctx context.Context, actor, peer string) (*schema.Channel, error) {
 	if actor == "" || strings.TrimSpace(peer) == "" || peer != strings.TrimSpace(peer) || len(peer) > 255 || actor == peer {
 		return nil, response.ErrInvalid
 	}
 	pair := []string{actor, peer}
 	sort.Strings(pair)
 	encoded, _ := json.Marshal(pair)
-	return s.repo.GetOrCreate(ctx, tenant, [2]string{pair[0], pair[1]}, fmt.Sprintf("%x", sha256.Sum256(encoded)))
+	return s.repo.GetOrCreate(ctx, [2]string{pair[0], pair[1]}, fmt.Sprintf("%x", sha256.Sum256(encoded)))
 }
-func (s *Service) Get(ctx context.Context, tenant, actor, id string) (*schema.Channel, error) {
+func (s *Service) Get(ctx context.Context, actor, id string) (*schema.Channel, error) {
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, response.ErrInvalid
 	}
-	ch, err := s.repo.Get(ctx, tenant, oid)
+	ch, err := s.repo.Get(ctx, oid)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +43,6 @@ func (s *Service) Get(ctx context.Context, tenant, actor, id string) (*schema.Ch
 	}
 	return ch, nil
 }
-func (s *Service) List(ctx context.Context, tenant, actor string) ([]schema.Channel, error) {
-	return s.repo.List(ctx, tenant, actor, 100)
+func (s *Service) List(ctx context.Context, actor string) ([]schema.Channel, error) {
+	return s.repo.List(ctx, actor, 100)
 }

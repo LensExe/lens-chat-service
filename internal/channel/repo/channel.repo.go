@@ -18,15 +18,15 @@ func New(db *mongo.Database) *Repository {
 }
 func (r *Repository) EnsureIndexes(ctx context.Context) error {
 	_, err := r.collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
-		{Keys: bson.D{{Key: "tenant_id", Value: 1}, {Key: "direct_key", Value: 1}}, Options: options.Index().SetUnique(true)},
-		{Keys: bson.D{{Key: "tenant_id", Value: 1}, {Key: "participant_ids", Value: 1}, {Key: "updated_at", Value: -1}}},
+		{Keys: bson.D{{Key: "direct_key", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "participant_ids", Value: 1}, {Key: "updated_at", Value: -1}}},
 	})
 	return err
 }
-func (r *Repository) GetOrCreate(ctx context.Context, tenant string, pair [2]string, key string) (*schema.Channel, error) {
-	filter := bson.M{"tenant_id": tenant, "direct_key": key}
+func (r *Repository) GetOrCreate(ctx context.Context, pair [2]string, key string) (*schema.Channel, error) {
+	filter := bson.M{"direct_key": key}
 	now := time.Now().UTC()
-	value := schema.Channel{ID: primitive.NewObjectID(), TenantID: tenant, DirectKey: key, ParticipantIDs: pair, Active: true, CreatedAt: now, UpdatedAt: now}
+	value := schema.Channel{ID: primitive.NewObjectID(), DirectKey: key, ParticipantIDs: pair, Active: true, CreatedAt: now, UpdatedAt: now}
 	var ch schema.Channel
 	err := r.collection.FindOneAndUpdate(ctx, filter, bson.M{"$setOnInsert": value}, options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After)).Decode(&ch)
 	if mongo.IsDuplicateKeyError(err) {
@@ -34,16 +34,16 @@ func (r *Repository) GetOrCreate(ctx context.Context, tenant string, pair [2]str
 	}
 	return &ch, err
 }
-func (r *Repository) Get(ctx context.Context, tenant string, id primitive.ObjectID) (*schema.Channel, error) {
+func (r *Repository) Get(ctx context.Context, id primitive.ObjectID) (*schema.Channel, error) {
 	var ch schema.Channel
-	err := r.collection.FindOne(ctx, bson.M{"_id": id, "tenant_id": tenant}).Decode(&ch)
+	err := r.collection.FindOne(ctx, bson.M{"_id": id}).Decode(&ch)
 	if err == mongo.ErrNoDocuments {
 		return nil, response.ErrNotFound
 	}
 	return &ch, err
 }
-func (r *Repository) List(ctx context.Context, tenant, user string, limit int64) ([]schema.Channel, error) {
-	cursor, err := r.collection.Find(ctx, bson.M{"tenant_id": tenant, "participant_ids": user, "active": true}, options.Find().SetSort(bson.D{{Key: "updated_at", Value: -1}, {Key: "_id", Value: -1}}).SetLimit(limit))
+func (r *Repository) List(ctx context.Context, user string, limit int64) ([]schema.Channel, error) {
+	cursor, err := r.collection.Find(ctx, bson.M{"participant_ids": user, "active": true}, options.Find().SetSort(bson.D{{Key: "updated_at", Value: -1}, {Key: "_id", Value: -1}}).SetLimit(limit))
 	if err != nil {
 		return nil, err
 	}

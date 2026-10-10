@@ -16,10 +16,7 @@ type channelsFake struct {
 	ch *schema.Channel
 }
 
-func (f channelsFake) Get(_ context.Context, tenant string, _ primitive.ObjectID) (*schema.Channel, error) {
-	if tenant != f.ch.TenantID {
-		return nil, response.ErrNotFound
-	}
+func (f channelsFake) Get(_ context.Context, _ primitive.ObjectID) (*schema.Channel, error) {
 	return f.ch, nil
 }
 
@@ -29,7 +26,7 @@ type messagesFake struct {
 	writes int
 }
 
-func (f *messagesFake) Get(context.Context, string, primitive.ObjectID) (*schema.Message, error) {
+func (f *messagesFake) Get(context.Context, primitive.ObjectID) (*schema.Message, error) {
 	return f.msg, nil
 }
 func (f *messagesFake) Create(_ context.Context, m *schema.Message) (*schema.Message, bool, error) {
@@ -39,31 +36,31 @@ func (f *messagesFake) Create(_ context.Context, m *schema.Message) (*schema.Mes
 func TestMessageAuthorization(t *testing.T) {
 	ctx := context.Background()
 	id := primitive.NewObjectID()
-	ch := &schema.Channel{ID: id, TenantID: "t", ParticipantIDs: [2]string{"a", "b"}, Active: true, LastMessageSeq: 10}
+	ch := &schema.Channel{ID: id, ParticipantIDs: [2]string{"a", "b"}, Active: true, LastMessageSeq: 10}
 	repo := &messagesFake{msg: &schema.Message{ID: primitive.NewObjectID(), ChannelID: id, SenderID: "a"}}
-	service := NewService(repo, channel.NewService(channelsFake{ch: ch}), nil)
+	service := NewService(repo, channel.NewService(channelsFake{ch: ch}))
 	req := dto.CreateMessageRequest{ClientMessageID: "client-id", Type: "text", Content: "hello"}
-	if _, _, err := service.Create(ctx, "t", "intruder", id.Hex(), req); !errors.Is(err, response.ErrNotFound) {
+	if _, _, err := service.Create(ctx, "intruder", id.Hex(), req); !errors.Is(err, response.ErrNotFound) {
 		t.Fatal("outsider sent message")
 	}
-	if _, err := service.Edit(ctx, "t", "b", repo.msg.ID.Hex(), "edited"); !errors.Is(err, response.ErrForbidden) {
+	if _, err := service.Edit(ctx, "b", repo.msg.ID.Hex(), "edited"); !errors.Is(err, response.ErrForbidden) {
 		t.Fatal("recipient edited sender message")
 	}
-	if _, err := service.Recall(ctx, "t", "b", repo.msg.ID.Hex()); !errors.Is(err, response.ErrForbidden) {
+	if _, err := service.Recall(ctx, "b", repo.msg.ID.Hex()); !errors.Is(err, response.ErrForbidden) {
 		t.Fatal("recipient recalled sender message")
 	}
-	if _, err := service.Read(ctx, "t", "a", id.Hex(), 11); !errors.Is(err, response.ErrInvalid) {
+	if _, err := service.Read(ctx, "a", id.Hex(), 11); !errors.Is(err, response.ErrInvalid) {
 		t.Fatal("accepted future read position")
 	}
 	if repo.writes != 0 {
 		t.Fatal("unauthorized mutation reached repository")
 	}
-	if _, created, err := service.Create(ctx, "t", "a", id.Hex(), req); err != nil || !created {
+	if _, created, err := service.Create(ctx, "a", id.Hex(), req); err != nil || !created {
 		t.Fatalf("valid send: %v", err)
 	}
 	req.ReplyToMessageID = repo.msg.ID.Hex()
 	repo.msg.ChannelID = primitive.NewObjectID()
-	if _, _, err := service.Create(ctx, "t", "a", id.Hex(), req); !errors.Is(err, response.ErrInvalid) {
+	if _, _, err := service.Create(ctx, "a", id.Hex(), req); !errors.Is(err, response.ErrInvalid) {
 		t.Fatal("accepted cross-channel reply")
 	}
 }

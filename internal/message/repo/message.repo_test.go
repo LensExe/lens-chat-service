@@ -16,10 +16,10 @@ import (
 	"time"
 )
 
-func TestMongoTransactionsAndIdempotency(t *testing.T) {
+func TestMongoStandaloneWritesAndIdempotency(t *testing.T) {
 	uri := os.Getenv("CHAT_TEST_MONGO_URI")
 	if uri == "" {
-		t.Skip("set CHAT_TEST_MONGO_URI to run replica set integration test")
+		t.Skip("set CHAT_TEST_MONGO_URI to run Mongo standalone integration test")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -42,16 +42,16 @@ func TestMongoTransactionsAndIdempotency(t *testing.T) {
 	if err = mr.EnsureIndexes(ctx); err != nil {
 		t.Fatal(err)
 	}
-	ch, err := cr.GetOrCreate(ctx, "tenant", [2]string{"a", "b"}, "pair")
+	ch, err := cr.GetOrCreate(ctx, [2]string{"a", "b"}, "pair")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ch2, err := cr.GetOrCreate(ctx, "tenant", [2]string{"a", "b"}, "pair")
+	ch2, err := cr.GetOrCreate(ctx, [2]string{"a", "b"}, "pair")
 	if err != nil || ch2.ID != ch.ID {
 		t.Fatalf("duplicate channel: %v", err)
 	}
 	makeMessage := func(key, hash string) *schema.Message {
-		return &schema.Message{TenantID: "tenant", ChannelID: ch.ID, SenderID: "a", ClientMessageID: key, RequestHash: hash, Type: "text", Content: "hello"}
+		return &schema.Message{ChannelID: ch.ID, SenderID: "a", ClientMessageID: key, RequestHash: hash, Type: "text", Content: "hello"}
 	}
 	var wg sync.WaitGroup
 	ids := make(chan primitive.ObjectID, 12)
@@ -89,7 +89,7 @@ func TestMongoTransactionsAndIdempotency(t *testing.T) {
 	if _, _, err = mr.Create(ctx, makeMessage("same-key", "changed-hash")); !errors.Is(err, response.ErrConflict) {
 		t.Fatal("idempotency conflict not rejected")
 	}
-	stored, err := cr.Get(ctx, "tenant", ch.ID)
+	stored, err := cr.Get(ctx, ch.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestMongoTransactionsAndIdempotency(t *testing.T) {
 	if t.Failed() {
 		return
 	}
-	history, err := mr.List(ctx, "tenant", ch.ID, 100, 0)
+	history, err := mr.List(ctx, ch.ID, 100, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,10 +127,10 @@ func TestMongoTransactionsAndIdempotency(t *testing.T) {
 			t.Fatal("non-contiguous sequence")
 		}
 	}
-	if seq, e := mr.Read(ctx, "tenant", ch.ID, "b", 10); e != nil || seq != 10 {
+	if seq, e := mr.Read(ctx, ch.ID, "b", 10); e != nil || seq != 10 {
 		t.Fatalf("read cursor: %d %v", seq, e)
 	}
-	if seq, e := mr.Read(ctx, "tenant", ch.ID, "b", 2); e != nil || seq != 10 {
+	if seq, e := mr.Read(ctx, ch.ID, "b", 2); e != nil || seq != 10 {
 		t.Fatalf("cursor regressed: %d %v", seq, e)
 	}
 	recalled, err := mr.Recall(ctx, &history[0])
