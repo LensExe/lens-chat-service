@@ -68,7 +68,6 @@ Compose Mongo này là standalone, không có replication/failover. Bật authen
 ## API
 
 Base path công khai qua Kong là `/api/v1/chat`. Actor luôn lấy từ JWT.
-Prefix cũ `/v1/api` vẫn được giữ tạm thời để tương thích với client đang nâng cấp.
 
 | Method | Route | Payload/query |
 |---|---|---|

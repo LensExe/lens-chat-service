@@ -20,7 +20,7 @@
 | Health/metrics | `GET /livez` 200; `GET /readyz` 200; `GET /metrics` 200, trả Prometheus text |
 | JWT | Thiếu bearer, chữ ký RSA sai và token hết hạn đều bị từ chối 401 |
 | Direct channel | Tạo và get-or-create từ cả hai phía trả 200 cùng channel ID; self-chat, peer rỗng và JSON sai trả 400; list trả 200; participant xem được 200; outsider nhận 404; channel ID sai định dạng trả 400 |
-| Prefix tương thích | `GET /v1/api/channels` trả 200 |
+| API prefix | Các request dùng prefix chuẩn `/api/v1/chat` và trả kết quả theo thiết kế |
 | Tạo message | Text mới trả 201, sequence 1/revision 1; retry cùng payload trả 200 cùng ID; cùng idempotency key với payload khác trả 409; type không hỗ trợ và content rỗng trả 400 |
 | Image/file | Message `image` và `file` với nội dung là reference trả 201; type và reference được giữ nguyên |
 | Reply/history | Reply trong cùng channel trả 201, sequence 2 và tham chiếu đúng message; reply sang channel khác trả 400; history trả 200 theo thứ tự sequence giảm dần; `before_seq` phân trang đúng; limit 0/101 và `before_seq` âm trả 400; outsider nhận 404 |

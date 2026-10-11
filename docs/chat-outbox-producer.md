@@ -10,7 +10,7 @@ Chat là nguồn dữ liệu chính của message và read cursor. Tất cả ev
 
 ## Hiện trạng trong repository
 
-- `POST /api/v1/chat/channels/:channel-id/messages` xác thực user, kiểm tra membership và lưu message. Prefix cũ `/v1/api` vẫn được giữ tạm thời.
+- `POST /api/v1/chat/channels/:channel-id/messages` xác thực user, kiểm tra membership và lưu message.
 - Create/edit/recall/read cursor cập nhật document nghiệp vụ, sau đó ghi event vào `outbox_events` bằng các Mongo operation riêng.
 - Outbox relay publish Kafka; Notification Service sở hữu Socket.IO delivery.
 
