@@ -45,6 +45,13 @@ func Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if cfg.Auth.Disabled {
+		slog.Warn(
+			"authentication middleware is disabled",
+			"scope", "chat API routes",
+			"environment", "local-only",
+		)
+	}
 
 	mongoConn, err := connectMongo(ctx, cfg.Mongo)
 	if err != nil {
@@ -67,6 +74,11 @@ func Run(ctx context.Context) error {
 	defer relay.Close()
 
 	server := newHTTPServer(cfg, verifier, repos, mongoConn.client, relay.telemetry)
+	slog.Info(
+		"Chat service initialized",
+		"address", cfg.Server.Address,
+		"integrations", []string{"mongodb", "keycloak", "kafka"},
+	)
 	return serveHTTP(ctx, server, cfg.Server.ShutdownTimeout)
 }
 
@@ -83,6 +95,13 @@ func loadRuntimeConfig() (setting.Config, *middleware.KeycloakVerifier, error) {
 	if err := setGinMode(cfg.Server.Mode); err != nil {
 		return setting.Config{}, nil, err
 	}
+	slog.Info(
+		"Keycloak verifier initialized",
+		"service", "keycloak",
+		"issuer", cfg.Keycloak.Issuer,
+		"audience", cfg.Keycloak.Audience,
+		"algorithm", "RS256",
+	)
 	return cfg, verifier, nil
 }
 
@@ -109,6 +128,7 @@ func connectMongo(parent context.Context, cfg setting.MongoConfig) (*mongoRuntim
 		runtime.Close()
 		return nil, err
 	}
+	slog.Info("MongoDB connected", "service", "mongodb", "database", cfg.Database)
 	return runtime, nil
 }
 
@@ -146,6 +166,14 @@ func startOutboxRelay(
 	if err != nil {
 		return nil, err
 	}
+	slog.Info(
+		"Kafka publisher initialized",
+		"service", "kafka",
+		"brokers", cfg.Brokers,
+		"topic", cfg.ChatEventsTopic,
+		"tls", cfg.TLS,
+		"sasl", cfg.Username != "",
+	)
 
 	telemetry := outbox.NewTelemetry() //
 	relay := outbox.NewRelay(
@@ -191,6 +219,8 @@ func newHTTPServer(
 		channel.NewController(channels),
 		message.NewController(messages),
 		verifier,
+		cfg.Auth.Disabled,
+		cfg.Auth.DefaultUserID,
 		cfg.CORS.AllowOrigins,
 		func(ctx context.Context) error {
 			return client.Ping(ctx, readpref.Primary())

@@ -23,6 +23,8 @@ func LoadConfig() (setting.Config, error) {
 	v.SetDefault("server.shutdown-timeout", 10*time.Second)
 	v.SetDefault("mongo.uri", "mongodb://localhost:27018/")
 	v.SetDefault("mongo.database", "chat_direct")
+	v.SetDefault("auth.disabled", false)
+	v.SetDefault("auth.default-user-id", "")
 	v.SetDefault("cors.allow-origins", []string{"http://localhost:3000"})
 	v.SetDefault("kafka.brokers", "localhost:9092")
 	v.SetDefault("kafka.client-id", "chat-service")
@@ -36,6 +38,7 @@ func LoadConfig() (setting.Config, error) {
 		"server.address", "server.mode", "server.shutdown-timeout",
 		"mongo.uri", "mongo.database",
 		"keycloak.issuer", "keycloak.audience", "keycloak.public-key", "keycloak.public-key-file",
+		"auth.disabled", "auth.default-user-id",
 		"cors.allow-origins",
 		"kafka.brokers", "kafka.client-id", "kafka.chat-events-topic",
 		"kafka.username", "kafka.password", "kafka.ssl",
@@ -77,6 +80,9 @@ func LoadConfig() (setting.Config, error) {
 	}
 	if cfg.Keycloak.PublicKey == "" && cfg.Keycloak.PublicKeyFile == "" {
 		return setting.Config{}, errors.New("KEYCLOAK_PUBLIC_KEY or KEYCLOAK_PUBLIC_KEY_FILE is required")
+	}
+	if cfg.Auth.Disabled && strings.TrimSpace(cfg.Auth.DefaultUserID) == "" {
+		return setting.Config{}, errors.New("AUTH_DEFAULT_USER_ID is required when authentication is disabled")
 	}
 	if strings.TrimSpace(cfg.Kafka.Brokers) == "" || strings.TrimSpace(cfg.Kafka.ClientID) == "" || strings.TrimSpace(cfg.Kafka.ChatEventsTopic) == "" {
 		return setting.Config{}, errors.New("Kafka brokers, client ID, and chat events topic are required")

@@ -6,6 +6,7 @@ type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Mongo    MongoConfig    `mapstructure:"mongo"`
 	Keycloak KeycloakConfig `mapstructure:"keycloak"`
+	Auth     AuthConfig     `mapstructure:"auth"`
 	CORS     CORSConfig     `mapstructure:"cors"`
 	Kafka    KafkaConfig    `mapstructure:"kafka"`
 }
@@ -26,6 +27,11 @@ type KeycloakConfig struct {
 	Audience      string `mapstructure:"audience"`
 	PublicKey     string `mapstructure:"public-key"`
 	PublicKeyFile string `mapstructure:"public-key-file"`
+}
+
+type AuthConfig struct {
+	Disabled      bool   `mapstructure:"disabled"`
+	DefaultUserID string `mapstructure:"default-user-id"`
 }
 
 type CORSConfig struct {

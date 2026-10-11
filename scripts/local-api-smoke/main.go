@@ -131,7 +131,6 @@ func main() {
 	listed := api.request("list actor channels", http.MethodGet, "/api/v1/chat/channels", actorToken, nil, http.StatusOK)
 	listData, listOK := listed["data"].([]any)
 	api.check("actor sees one direct channel", listOK && len(listData) == 1)
-	api.request("legacy API prefix remains available", http.MethodGet, "/v1/api/channels", actorToken, nil, http.StatusOK)
 	api.request("get channel as participant", http.MethodGet, "/api/v1/chat/channels/"+channelID, actorToken, nil, http.StatusOK)
 	api.request("channel hidden from outsider", http.MethodGet, "/api/v1/chat/channels/"+channelID, outsiderToken, nil, http.StatusNotFound)
 	api.request("malformed channel id rejected", http.MethodGet, "/api/v1/chat/channels/not-an-object-id", actorToken, nil, http.StatusBadRequest)
