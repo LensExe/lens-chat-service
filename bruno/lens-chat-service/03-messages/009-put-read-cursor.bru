@@ -1,0 +1,33 @@
+meta {
+  name: messages/read-cursor
+  type: http
+  seq: 9
+}
+
+put {
+  url: {{baseUrl}}/api/v1/chat/channels/{{channelId}}/read-cursor
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "last_read_seq": 1
+  }
+}
+
+tests {
+  test("advances the read cursor", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Cập nhật message sequence cuối cùng đã đọc.
+  Authentication: Bearer token
+}

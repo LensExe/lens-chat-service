@@ -1,0 +1,26 @@
+meta {
+  name: messages/list
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/v1/chat/channels/{{channelId}}/messages?limit=20&before_seq=0
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+tests {
+  test("lists messages for the channel", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Lấy lịch sử message; dùng limit và before_seq để phân trang.
+  Authentication: Bearer token
+}

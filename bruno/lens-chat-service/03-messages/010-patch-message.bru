@@ -1,0 +1,33 @@
+meta {
+  name: messages/edit
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/chat/messages/{{messageId}}
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "content": "Tin nhắn đã được chỉnh sửa từ Bruno"
+  }
+}
+
+tests {
+  test("edits the message", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Chỉnh sửa message; chỉ sender mới được chỉnh sửa.
+  Authentication: Bearer token
+}

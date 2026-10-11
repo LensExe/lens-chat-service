@@ -1,0 +1,26 @@
+meta {
+  name: messages/recall
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/v1/chat/messages/{{messageId}}/recall
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+tests {
+  test("recalls the message", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Thu hồi message; chỉ sender mới được thu hồi.
+  Authentication: Bearer token
+}

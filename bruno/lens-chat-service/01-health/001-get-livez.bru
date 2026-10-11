@@ -1,0 +1,26 @@
+meta {
+  name: health/livez
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/livez
+  body: none
+  auth: none
+}
+
+vars:pre-request {
+  baseUrl: http://localhost:3002
+}
+
+tests {
+  test("returns 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Kiểm tra process chat-service còn sống.
+  Authentication: public
+}

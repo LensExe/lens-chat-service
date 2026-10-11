@@ -1,0 +1,23 @@
+meta {
+  name: health/metrics
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/metrics
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns Prometheus metrics", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getHeader("content-type")).to.contain("text/plain");
+  });
+}
+
+docs {
+  Lấy metrics cho Prometheus.
+  Authentication: public; chỉ expose trong mạng nội bộ.
+}

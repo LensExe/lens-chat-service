@@ -1,0 +1,45 @@
+meta {
+  name: messages/create
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/v1/chat/channels/{{channelId}}/messages
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "client_message_id": "{{clientMessageId}}",
+    "type": "text",
+    "content": "Tin nhắn test từ Bruno"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() < 300) {
+    const body = res.getBody();
+    if (body && body.data && body.data.id) {
+      bru.setVar("messageId", body.data.id);
+    }
+  }
+}
+
+tests {
+  test("creates or retries a message", function () {
+    expect(res.getStatus()).to.be.oneOf([200, 201]);
+  });
+}
+
+docs {
+  Gửi message text vào channel.
+  Authentication: Bearer token
+  Body: client_message_id, type=text|image|file, content
+}

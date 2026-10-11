@@ -1,0 +1,26 @@
+meta {
+  name: channels/list
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/chat/channels
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+tests {
+  test("lists channels for the authenticated user", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Lấy danh sách channel của user hiện tại.
+  Authentication: Bearer token
+}

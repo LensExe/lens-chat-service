@@ -1,0 +1,22 @@
+meta {
+  name: health/readyz
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/readyz
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 200 when MongoDB is ready", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Kiểm tra MongoDB đã sẵn sàng.
+  Authentication: public
+}

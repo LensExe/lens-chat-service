@@ -1,0 +1,43 @@
+meta {
+  name: channels/create-direct
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/v1/chat/channels/direct
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "peer_id": "{{peerId}}"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() < 300) {
+    const body = res.getBody();
+    if (body && body.data && body.data.id) {
+      bru.setVar("channelId", body.data.id);
+    }
+  }
+}
+
+tests {
+  test("creates or returns a direct channel", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Tạo hoặc lấy direct channel giữa user hiện tại và peer.
+  Authentication: Bearer token
+  Body: { "peer_id": "<Keycloak subject của peer>" }
+}
