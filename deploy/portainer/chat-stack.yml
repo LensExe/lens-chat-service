@@ -1,0 +1,83 @@
+name: lens-chat-service
+
+services:
+  # Keep the service name "chat": Kong reaches it at http://chat:8080.
+  chat:
+    image: '${CHAT_IMAGE:-${IMAGE_REGISTRY:-ghcr.io}/${IMAGE_OWNER:-lensexe}/lens-chat-service:${IMAGE_TAG:-latest}}'
+    pull_policy: '${CHAT_PULL_POLICY:-always}'
+    environment:
+      SERVER_ADDRESS: '${SERVER_ADDRESS:-:8080}'
+      SERVER_MODE: '${SERVER_MODE:-release}'
+      SERVER_SHUTDOWN_TIMEOUT: '${SERVER_SHUTDOWN_TIMEOUT:-10s}'
+
+      MONGO_URI: '${MONGO_URI:?Set MONGO_URI in Portainer}'
+      MONGO_DATABASE: '${MONGO_DATABASE:-chat_direct}'
+
+      KEYCLOAK_ISSUER: '${KEYCLOAK_ISSUER:?Set KEYCLOAK_ISSUER in Portainer}'
+      KEYCLOAK_AUDIENCE: '${KEYCLOAK_AUDIENCE:?Set KEYCLOAK_AUDIENCE in Portainer}'
+      KEYCLOAK_PUBLIC_KEY: '${KEYCLOAK_PUBLIC_KEY:?Set KEYCLOAK_PUBLIC_KEY in Portainer}'
+
+      AUTH_DISABLED: '${AUTH_DISABLED:-false}'
+      AUTH_DEFAULT_USER_ID: '${AUTH_DEFAULT_USER_ID:-}'
+      CORS_ALLOW_ORIGINS: '${CORS_ALLOW_ORIGINS:-https://app.lens.id.vn}'
+
+      KAFKA_BROKERS: '${KAFKA_BROKERS:-kafka:9094}'
+      KAFKA_CLIENT_ID: '${KAFKA_CLIENT_ID:-chat-service}'
+      KAFKA_CHAT_EVENTS_TOPIC: '${KAFKA_CHAT_EVENTS_TOPIC:-chat.conversation.events.v1}'
+      KAFKA_USERNAME: '${KAFKA_USERNAME:-kafka}'
+      KAFKA_PASSWORD: '${KAFKA_PASSWORD:?Set KAFKA_PASSWORD in Portainer}'
+      KAFKA_SSL: '${KAFKA_SSL:-false}'
+      KAFKA_OUTBOX_POLL_INTERVAL: '${KAFKA_OUTBOX_POLL_INTERVAL:-1s}'
+      KAFKA_OUTBOX_LEASE_DURATION: '${KAFKA_OUTBOX_LEASE_DURATION:-30s}'
+      KAFKA_PUBLISH_TIMEOUT: '${KAFKA_PUBLISH_TIMEOUT:-10s}'
+    ports:
+      - '127.0.0.1:${CHAT_HOST_PORT:-3002}:8080'
+    depends_on:
+      chat-mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/livez']
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    networks:
+      - lens-network
+      - lens-proxy
+    restart: unless-stopped
+
+  chat-mongodb:
+    image: '${MONGO_IMAGE:-mongo:7.0.34-jammy}'
+    pull_policy: '${MONGO_PULL_POLICY:-missing}'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: '${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in Portainer}'
+      MONGO_INITDB_ROOT_PASSWORD: '${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in Portainer}'
+      MONGO_INITDB_DATABASE: '${MONGO_DATABASE:-chat_direct}'
+    volumes:
+      - chat-mongo-data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --username "$$MONGO_INITDB_ROOT_USERNAME"
+          --password "$$MONGO_INITDB_ROOT_PASSWORD"
+          --authenticationDatabase admin
+          --eval "db.adminCommand({ ping: 1 }).ok" | grep -q 1
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - lens-network
+    restart: unless-stopped
+
+volumes:
+  chat-mongo-data:
+    name: lens-chat-mongo-data
+
+networks:
+  lens-network:
+    external: true
+    name: lens-network
+  lens-proxy:
+    external: true
+    name: lens-proxy
