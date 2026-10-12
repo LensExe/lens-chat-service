@@ -23,8 +23,6 @@ services:
       KAFKA_OUTBOX_POLL_INTERVAL: ${KAFKA_OUTBOX_POLL_INTERVAL:-1s}
       KAFKA_OUTBOX_LEASE_DURATION: ${KAFKA_OUTBOX_LEASE_DURATION:-30s}
       KAFKA_PUBLISH_TIMEOUT: ${KAFKA_PUBLISH_TIMEOUT:-10s}
-    ports:
-      - '127.0.0.1:${CHAT_HOST_PORT:-8081}:8080'
     networks:
       - lens-network
     restart: unless-stopped
