@@ -50,9 +50,11 @@ KAFKA_PUBLISH_TIMEOUT=10s
 
 Username/password là tuỳ chọn nhưng phải cấu hình cùng nhau. Container Chat gắn vào `lens-network` dùng `KAFKA_BROKERS=kafka:9094` và bỏ username/password vì listener nội bộ dùng PLAINTEXT. Đặt secret trong environment/secret manager, không ghi vào file cấu hình được commit.
 
-Mongo URI cho Go chạy trên host: `mongodb://localhost:27018/`.
-Container tham gia `lens-network` dùng `mongodb://chat-mongodb:27017/`.
-Compose Mongo này là standalone, không có replication/failover. Bật authentication và chọn topology phù hợp trước khi đưa database ra môi trường dùng chung hoặc production.
+Mongo URI cho Go chạy trên host local test: `mongodb://localhost:27018/`.
+Trong Portainer, Chat dùng Mongo chung của `lens-infra` qua alias
+`mongodb://<chat-user>:<chat-password>@chat-mongodb:27017/?authSource=chat_direct`
+và database `chat_direct`. `chat-stack.yml` không còn tạo Mongo container hoặc
+volume riêng; Compose local test vẫn có thể chạy Mongo standalone độc lập.
 
 ## Keycloak
 

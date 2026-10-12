@@ -30,9 +30,6 @@ services:
       KAFKA_OUTBOX_POLL_INTERVAL: '${KAFKA_OUTBOX_POLL_INTERVAL:-1s}'
       KAFKA_OUTBOX_LEASE_DURATION: '${KAFKA_OUTBOX_LEASE_DURATION:-30s}'
       KAFKA_PUBLISH_TIMEOUT: '${KAFKA_PUBLISH_TIMEOUT:-10s}'
-    depends_on:
-      chat-mongodb:
-        condition: service_healthy
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/livez']
       interval: 30s
@@ -42,34 +39,6 @@ services:
     networks:
       - lens-network
     restart: unless-stopped
-
-  chat-mongodb:
-    image: '${MONGO_IMAGE:-mongo:7.0.34-jammy}'
-    pull_policy: '${MONGO_PULL_POLICY:-missing}'
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: '${MONGO_ROOT_USERNAME:?Set MONGO_ROOT_USERNAME in Portainer}'
-      MONGO_INITDB_ROOT_PASSWORD: '${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in Portainer}'
-      MONGO_INITDB_DATABASE: '${MONGO_DATABASE:-chat_direct}'
-    volumes:
-      - chat-mongo-data:/data/db
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          mongosh --quiet --username "$$MONGO_INITDB_ROOT_USERNAME"
-          --password "$$MONGO_INITDB_ROOT_PASSWORD"
-          --authenticationDatabase admin
-          --eval "db.adminCommand({ ping: 1 }).ok" | grep -q 1
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    networks:
-      - lens-network
-    restart: unless-stopped
-
-volumes:
-  chat-mongo-data:
-    name: lens-chat-mongo-data
 
 networks:
   lens-network:
