@@ -1,37 +1,36 @@
-name: lens-chat-service
-
 services:
   # Keep the service name "chat": Kong reaches it at http://chat:8080.
-  chat:
-    image: '${CHAT_IMAGE:-${IMAGE_REGISTRY:-ghcr.io}/${IMAGE_OWNER:-lensexe}/lens-chat-service:${IMAGE_TAG:-latest}}'
-    pull_policy: '${CHAT_PULL_POLICY:-always}'
+  lens-chat:
+    container_name: lens-chat
+    image: "${CHAT_IMAGE:-${IMAGE_REGISTRY:-ghcr.io}/${IMAGE_OWNER:-lensexe}/lens-chat-service:${IMAGE_TAG:-latest}}"
+    pull_policy: "${CHAT_PULL_POLICY:-always}"
     environment:
-      SERVER_ADDRESS: '${SERVER_ADDRESS:-:8080}'
-      SERVER_MODE: '${SERVER_MODE:-release}'
-      SERVER_SHUTDOWN_TIMEOUT: '${SERVER_SHUTDOWN_TIMEOUT:-10s}'
+      SERVER_ADDRESS: "${SERVER_ADDRESS:-:8080}"
+      SERVER_MODE: "${SERVER_MODE:-release}"
+      SERVER_SHUTDOWN_TIMEOUT: "${SERVER_SHUTDOWN_TIMEOUT:-10s}"
 
-      MONGO_URI: '${MONGO_URI:?Set MONGO_URI in Portainer}'
-      MONGO_DATABASE: '${MONGO_DATABASE:-chat_direct}'
+      MONGO_URI: "${MONGO_URI:?Set MONGO_URI in Portainer}"
+      MONGO_DATABASE: "${MONGO_DATABASE:-chat_direct}"
 
-      KEYCLOAK_ISSUER: '${KEYCLOAK_ISSUER:?Set KEYCLOAK_ISSUER in Portainer}'
-      KEYCLOAK_AUDIENCE: '${KEYCLOAK_AUDIENCE:?Set KEYCLOAK_AUDIENCE in Portainer}'
-      KEYCLOAK_PUBLIC_KEY: '${KEYCLOAK_PUBLIC_KEY:?Set KEYCLOAK_PUBLIC_KEY in Portainer}'
+      KEYCLOAK_ISSUER: "${KEYCLOAK_ISSUER:?Set KEYCLOAK_ISSUER in Portainer}"
+      KEYCLOAK_AUDIENCE: "${KEYCLOAK_AUDIENCE:?Set KEYCLOAK_AUDIENCE in Portainer}"
+      KEYCLOAK_PUBLIC_KEY: "${KEYCLOAK_PUBLIC_KEY:?Set KEYCLOAK_PUBLIC_KEY in Portainer}"
 
-      AUTH_DISABLED: '${AUTH_DISABLED:-false}'
-      AUTH_DEFAULT_USER_ID: '${AUTH_DEFAULT_USER_ID:-}'
-      CORS_ALLOW_ORIGINS: '${CORS_ALLOW_ORIGINS:-https://app.lens.id.vn}'
+      AUTH_DISABLED: "${AUTH_DISABLED:-false}"
+      AUTH_DEFAULT_USER_ID: "${AUTH_DEFAULT_USER_ID:-}"
+      CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-https://app.lens.id.vn}"
 
-      KAFKA_BROKERS: '${KAFKA_BROKERS:-kafka:9094}'
-      KAFKA_CLIENT_ID: '${KAFKA_CLIENT_ID:-chat-service}'
-      KAFKA_CHAT_EVENTS_TOPIC: '${KAFKA_CHAT_EVENTS_TOPIC:-chat.conversation.events.v1}'
-      KAFKA_USERNAME: '${KAFKA_USERNAME:-kafka}'
-      KAFKA_PASSWORD: '${KAFKA_PASSWORD:?Set KAFKA_PASSWORD in Portainer}'
-      KAFKA_SSL: '${KAFKA_SSL:-false}'
-      KAFKA_OUTBOX_POLL_INTERVAL: '${KAFKA_OUTBOX_POLL_INTERVAL:-1s}'
-      KAFKA_OUTBOX_LEASE_DURATION: '${KAFKA_OUTBOX_LEASE_DURATION:-30s}'
-      KAFKA_PUBLISH_TIMEOUT: '${KAFKA_PUBLISH_TIMEOUT:-10s}'
+      KAFKA_BROKERS: "${KAFKA_BROKERS:-kafka:9094}"
+      KAFKA_CLIENT_ID: "${KAFKA_CLIENT_ID:-chat-service}"
+      KAFKA_CHAT_EVENTS_TOPIC: "${KAFKA_CHAT_EVENTS_TOPIC:-chat.conversation.events.v1}"
+      KAFKA_USERNAME: "${KAFKA_USERNAME:-kafka}"
+      KAFKA_PASSWORD: "${KAFKA_PASSWORD:?Set KAFKA_PASSWORD in Portainer}"
+      KAFKA_SSL: "${KAFKA_SSL:-false}"
+      KAFKA_OUTBOX_POLL_INTERVAL: "${KAFKA_OUTBOX_POLL_INTERVAL:-1s}"
+      KAFKA_OUTBOX_LEASE_DURATION: "${KAFKA_OUTBOX_LEASE_DURATION:-30s}"
+      KAFKA_PUBLISH_TIMEOUT: "${KAFKA_PUBLISH_TIMEOUT:-10s}"
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8080/livez']
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/livez"]
       interval: 30s
       timeout: 5s
       start_period: 20s
