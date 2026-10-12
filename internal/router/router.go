@@ -39,6 +39,6 @@ func New(
 }
 
 func registerCommonMiddleware(r *gin.Engine, origins []string) {
-	r.Use(gin.Recovery(), middleware.CORS(origins))
+	r.Use(gin.Recovery())
 	r.Use(func(c *gin.Context) { c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<10); c.Next() })
 }
