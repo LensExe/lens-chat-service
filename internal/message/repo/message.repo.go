@@ -86,7 +86,6 @@ func (r *Repository) Create(ctx context.Context, msg *schema.Message) (*schema.M
 		if err == nil && latest.Sequence > sequence {
 			sequence = latest.Sequence
 		}
-
 		candidate := *msg
 		candidate.Sequence = sequence + 1
 		if _, err = r.messages.InsertOne(ctx, &candidate); err != nil {
@@ -185,6 +184,7 @@ func messageEventPayload(msg *schema.Message) *schema.ChatMessageEventPayload {
 		ID:               msg.ID.Hex(),
 		ChannelID:        msg.ChannelID.Hex(),
 		SenderID:         msg.SenderID,
+		SenderKind:       senderKind(msg.SenderKind),
 		ClientMessageID:  msg.ClientMessageID,
 		Type:             msg.Type,
 		Content:          msg.Content,
@@ -195,6 +195,13 @@ func messageEventPayload(msg *schema.Message) *schema.ChatMessageEventPayload {
 		CreatedAt:        msg.CreatedAt,
 		UpdatedAt:        msg.UpdatedAt,
 	}
+}
+
+func senderKind(value string) string {
+	if value == "ai" {
+		return "ai"
+	}
+	return "user"
 }
 
 func (r *Repository) Get(ctx context.Context, id primitive.ObjectID) (*schema.Message, error) {

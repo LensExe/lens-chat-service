@@ -45,7 +45,7 @@ func (s *Service) Create(
 	if strings.TrimSpace(req.ClientMessageID) == "" || len(req.ClientMessageID) > 100 || !utf8.ValidString(req.Content) || strings.TrimSpace(req.Content) == "" || len(req.Content) > 10000 || (req.Type != "text" && req.Type != "image" && req.Type != "file") {
 		return nil, false, response.ErrInvalid
 	}
-	msg := &schema.Message{ChannelID: ch.ID, SenderID: actor, ClientMessageID: req.ClientMessageID, Type: req.Type, Content: req.Content}
+	msg := &schema.Message{ChannelID: ch.ID, SenderID: actor, SenderKind: "user", ClientMessageID: req.ClientMessageID, Type: req.Type, Content: req.Content}
 	if req.ReplyToMessageID != "" {
 		replyID, e := primitive.ObjectIDFromHex(req.ReplyToMessageID)
 		if e != nil {
@@ -67,6 +67,84 @@ func (s *Service) Create(
 		return nil, false, err
 	}
 	return saved, created, nil
+}
+
+func (s *Service) CreateAIReply(
+	ctx context.Context,
+	channelID string,
+	photographerID string,
+	req dto.CreateAIReplyRequest,
+) (*schema.Message, bool, error) {
+	if strings.TrimSpace(photographerID) == "" ||
+		strings.TrimSpace(req.ClientMessageID) == "" ||
+		len(req.ClientMessageID) > 100 ||
+		strings.TrimSpace(req.Content) == "" ||
+		len(req.Content) > 10000 ||
+		!utf8.ValidString(req.Content) ||
+		req.ExpectedLastSequence < 1 ||
+		strings.TrimSpace(req.SourceMessageID) == "" {
+		return nil, false, response.ErrInvalid
+	}
+
+	ch, err := s.channels.Get(ctx, photographerID, channelID)
+	if err != nil {
+		return nil, false, err
+	}
+	sourceID, err := primitive.ObjectIDFromHex(req.SourceMessageID)
+	if err != nil {
+		return nil, false, response.ErrInvalid
+	}
+	source, err := s.repo.Get(ctx, sourceID)
+	if err != nil {
+		return nil, false, err
+	}
+	if source.ChannelID != ch.ID ||
+		source.SenderID == photographerID ||
+		source.SenderKind == "ai" ||
+		source.RecalledAt != nil {
+		return nil, false, response.ErrConflict
+	}
+
+	msg := &schema.Message{
+		ChannelID:        ch.ID,
+		SenderID:         photographerID,
+		SenderKind:       "ai",
+		ClientMessageID:  req.ClientMessageID,
+		Type:             "text",
+		Content:          strings.TrimSpace(req.Content),
+		ReplyToMessageID: source.ID,
+	}
+	encoded, _ := json.Marshal(req)
+	msg.RequestHash = fmt.Sprintf("%x", sha256.Sum256(encoded))
+	saved, created, err := s.repo.Create(ctx, msg)
+	if err != nil {
+		return nil, false, err
+	}
+	return saved, created, nil
+}
+
+func (s *Service) ListForAI(
+	ctx context.Context,
+	channelID string,
+	photographerID string,
+	limit int64,
+	beforeSequence int64,
+) ([]schema.Message, error) {
+	if limit < 1 || limit > 30 || beforeSequence < 0 {
+		return nil, response.ErrInvalid
+	}
+	ch, err := s.channels.Get(ctx, photographerID, channelID)
+	if err != nil {
+		return nil, err
+	}
+	messages, err := s.repo.List(ctx, ch.ID, limit, beforeSequence)
+	if err != nil {
+		return nil, err
+	}
+	for left, right := 0, len(messages)-1; left < right; left, right = left+1, right-1 {
+		messages[left], messages[right] = messages[right], messages[left]
+	}
+	return messages, nil
 }
 
 func (s *Service) List(

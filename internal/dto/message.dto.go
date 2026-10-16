@@ -9,6 +9,16 @@ type CreateMessageRequest struct {
 	ReplyToMessageID string `json:"reply_to_message_id,omitempty"`
 }
 
+// CreateAIReplyRequest keeps ExpectedLastSequence for request-hash compatibility;
+// Chat Service does not compare it with the latest channel sequence.
+type CreateAIReplyRequest struct {
+	PhotographerID       string `json:"photographer_id" binding:"required,max=255"`
+	ClientMessageID      string `json:"client_message_id" binding:"required,max=100"`
+	SourceMessageID      string `json:"source_message_id" binding:"required"`
+	ExpectedLastSequence int64  `json:"expected_last_seq" binding:"required,gte=1"`
+	Content              string `json:"content" binding:"required,max=10000"`
+}
+
 type UpdateMessageRequest struct {
 	Content string `json:"content" binding:"required,max=10000"`
 }
@@ -21,6 +31,7 @@ type MessageResponse struct {
 	ID               string     `json:"id"`
 	ChannelID        string     `json:"channel_id"`
 	SenderID         string     `json:"sender_id"`
+	SenderKind       string     `json:"sender_kind"`
 	ClientMessageID  string     `json:"client_message_id"`
 	Type             string     `json:"type"`
 	Content          string     `json:"content"`

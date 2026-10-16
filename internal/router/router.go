@@ -16,7 +16,10 @@ func New(
 	verifier *middleware.KeycloakVerifier,
 	authDisabled bool,
 	defaultUserID string,
-	origins []string, ping func(context.Context) error, metrics func(context.Context) (string, error),
+	origins []string,
+	aiWorkerToken string,
+	ping func(context.Context) error,
+	metrics func(context.Context) (string, error),
 ) *gin.Engine {
 	r := gin.New()
 	registerCommonMiddleware(r, origins)
@@ -34,11 +37,17 @@ func New(
 	}
 	registerChannelRoutes(publicAPI, ch)
 	registerMessageRoutes(publicAPI, msg)
+	registerAIMessageRoutes(r, msg, aiWorkerToken)
 
 	return r
 }
 
 func registerCommonMiddleware(r *gin.Engine, origins []string) {
 	r.Use(gin.Recovery())
-	r.Use(func(c *gin.Context) { c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<10); c.Next() })
+	r.Use(
+		func(c *gin.Context) {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 64<<10)
+			c.Next()
+		},
+	)
 }

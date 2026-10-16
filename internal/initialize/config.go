@@ -43,6 +43,7 @@ func LoadConfig() (setting.Config, error) {
 		"kafka.brokers", "kafka.client-id", "kafka.chat-events-topic",
 		"kafka.username", "kafka.password", "kafka.ssl",
 		"kafka.outbox-poll-interval", "kafka.outbox-lease-duration", "kafka.publish-timeout",
+		"ai-worker-token",
 	}
 	for _, key := range keys {
 		if err := v.BindEnv(key); err != nil {

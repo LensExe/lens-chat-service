@@ -3,12 +3,13 @@ package setting
 import "time"
 
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Mongo    MongoConfig    `mapstructure:"mongo"`
-	Keycloak KeycloakConfig `mapstructure:"keycloak"`
-	Auth     AuthConfig     `mapstructure:"auth"`
-	CORS     CORSConfig     `mapstructure:"cors"`
-	Kafka    KafkaConfig    `mapstructure:"kafka"`
+	Server        ServerConfig   `mapstructure:"server"`
+	Mongo         MongoConfig    `mapstructure:"mongo"`
+	Keycloak      KeycloakConfig `mapstructure:"keycloak"`
+	Auth          AuthConfig     `mapstructure:"auth"`
+	CORS          CORSConfig     `mapstructure:"cors"`
+	Kafka         KafkaConfig    `mapstructure:"kafka"`
+	AIWorkerToken string         `mapstructure:"ai-worker-token"`
 }
 
 type ServerConfig struct {

@@ -20,7 +20,11 @@ func Channel(ch *schema.Channel, actor string) dto.ChannelResponse {
 	return result
 }
 func Message(m *schema.Message) dto.MessageResponse {
-	result := dto.MessageResponse{ID: m.ID.Hex(), ChannelID: m.ChannelID.Hex(), SenderID: m.SenderID, ClientMessageID: m.ClientMessageID, Type: m.Type, Content: m.Content, Sequence: m.Sequence, Revision: m.Revision, RecalledAt: m.RecalledAt, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt}
+	senderKind := m.SenderKind
+	if senderKind == "" {
+		senderKind = "user"
+	}
+	result := dto.MessageResponse{ID: m.ID.Hex(), ChannelID: m.ChannelID.Hex(), SenderID: m.SenderID, SenderKind: senderKind, ClientMessageID: m.ClientMessageID, Type: m.Type, Content: m.Content, Sequence: m.Sequence, Revision: m.Revision, RecalledAt: m.RecalledAt, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt}
 	if !m.ReplyToMessageID.IsZero() {
 		result.ReplyToMessageID = m.ReplyToMessageID.Hex()
 	}

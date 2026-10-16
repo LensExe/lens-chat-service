@@ -45,6 +45,7 @@ type ChatMessageEventPayload struct {
 	ID               string     `json:"id" bson:"id"`
 	ChannelID        string     `json:"channel_id" bson:"channel_id"`
 	SenderID         string     `json:"sender_id" bson:"sender_id"`
+	SenderKind       string     `json:"sender_kind,omitempty" bson:"sender_kind,omitempty"`
 	ClientMessageID  string     `json:"client_message_id" bson:"client_message_id"`
 	Type             string     `json:"type" bson:"type"`
 	Content          string     `json:"content" bson:"content"`

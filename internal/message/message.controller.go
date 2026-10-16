@@ -39,6 +39,55 @@ func (h *Controller) Create(c *gin.Context) {
 	response.OK(c, status, mapper.Message(msg))
 }
 
+func (h *Controller) CreateAIReply(c *gin.Context) {
+	var req dto.CreateAIReplyRequest
+	if c.ShouldBindJSON(&req) != nil {
+		response.FromError(c, response.ErrInvalid)
+		return
+	}
+	msg, created, err := h.service.CreateAIReply(
+		c.Request.Context(),
+		c.Param("channel-id"),
+		req.PhotographerID,
+		req,
+	)
+	if err != nil {
+		response.FromError(c, err)
+		return
+	}
+	status := 200
+	if created {
+		status = 201
+	}
+	response.OK(c, status, mapper.Message(msg))
+}
+
+func (h *Controller) ListForAI(c *gin.Context) {
+	limit, err := strconv.ParseInt(c.DefaultQuery("limit", "12"), 10, 64)
+	beforeSequence, beforeErr := strconv.ParseInt(c.DefaultQuery("before_seq", "0"), 10, 64)
+	if err != nil || beforeErr != nil {
+		response.FromError(c, response.ErrInvalid)
+		return
+	}
+	photographerID := c.Query("photographer_id")
+	messages, err := h.service.ListForAI(
+		c.Request.Context(),
+		c.Param("channel-id"),
+		photographerID,
+		limit,
+		beforeSequence,
+	)
+	if err != nil {
+		response.FromError(c, err)
+		return
+	}
+	result := make([]dto.MessageResponse, 0, len(messages))
+	for i := range messages {
+		result = append(result, mapper.Message(&messages[i]))
+	}
+	response.OK(c, 200, result)
+}
+
 func (h *Controller) List(c *gin.Context) {
 	limit, e1 := strconv.ParseInt(c.DefaultQuery("limit", "20"), 10, 64)
 	before, e2 := strconv.ParseInt(c.DefaultQuery("before_seq", "0"), 10, 64)

@@ -19,6 +19,7 @@ services:
       AUTH_DISABLED: "${AUTH_DISABLED:-false}"
       AUTH_DEFAULT_USER_ID: "${AUTH_DEFAULT_USER_ID:-}"
       CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-https://app.lens.id.vn}"
+      AI_WORKER_TOKEN: "${AI_WORKER_TOKEN:-}"
 
       KAFKA_BROKERS: "${KAFKA_BROKERS:-kafka:9094}"
       KAFKA_CLIENT_ID: "${KAFKA_CLIENT_ID:-chat-service}"

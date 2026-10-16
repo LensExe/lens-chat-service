@@ -222,6 +222,7 @@ func newHTTPServer(
 		cfg.Auth.Disabled,
 		cfg.Auth.DefaultUserID,
 		cfg.CORS.AllowOrigins,
+		cfg.AIWorkerToken,
 		func(ctx context.Context) error {
 			return client.Ping(ctx, readpref.Primary())
 		},

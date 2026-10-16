@@ -12,6 +12,7 @@ type Message struct {
 	ID               primitive.ObjectID `bson:"_id,omitempty"`
 	ChannelID        primitive.ObjectID `bson:"channel_id"`
 	SenderID         string             `bson:"sender_id"`
+	SenderKind       string             `bson:"sender_kind,omitempty"`
 	ClientMessageID  string             `bson:"client_message_id"`
 	RequestHash      string             `bson:"request_hash"`
 	Type             string             `bson:"type"`
