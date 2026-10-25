@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"crypto/rsa"
+	"crypto/subtle"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -97,6 +99,20 @@ func (v *KeycloakVerifier) Verify(rawToken string) (*KeycloakClaims, error) {
 func (v *KeycloakVerifier) GinMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rawToken := bearerToken(c.GetHeader("Authorization"))
+		cookieAuthenticated := false
+		if rawToken == "" {
+			rawToken, _ = c.Cookie("keycloak_access_token")
+			cookieAuthenticated = rawToken != ""
+		}
+		if cookieAuthenticated && !isSafeMethod(c.Request.Method) {
+			csrfCookie, _ := c.Cookie("csrf_token")
+			csrfHeader := c.GetHeader("X-CSRF-Token")
+			if !matchesCSRFToken(csrfCookie, csrfHeader) {
+				response.Fail(c, http.StatusForbidden, "FORBIDDEN", "CSRF token required")
+				c.Abort()
+				return
+			}
+		}
 		claims, err := v.Verify(rawToken)
 		if err != nil {
 			response.Unauthorized(c)
@@ -107,6 +123,22 @@ func (v *KeycloakVerifier) GinMiddleware() gin.HandlerFunc {
 		c.Set(ContextExpiresAt, claims.ExpiresAt.Time)
 		c.Next()
 	}
+}
+
+func isSafeMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return true
+	default:
+		return false
+	}
+}
+
+func matchesCSRFToken(cookieToken, headerToken string) bool {
+	if cookieToken == "" || headerToken == "" || len(cookieToken) != len(headerToken) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(cookieToken), []byte(headerToken)) == 1
 }
 
 func bearerToken(header string) string {
